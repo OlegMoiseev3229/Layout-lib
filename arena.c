@@ -5,11 +5,12 @@ typedef struct {
 	void *data;
 	size_t offset;
 	size_t cap;
+	const char *name;
 } Arena;
 
 void *arena_get_memory(Arena *arena, size_t bytes) {
 	if (arena->cap - arena->offset < bytes) {
-		fprintf(stderr, "Out of memory on the arena\n");
+		fprintf(stderr, "Out of memory on the arena \"%s\"\n", arena->name ? arena->name : "Anonimous arena");
 		return NULL;
 	}
 	void *res = (uint8_t*)arena->data + arena->offset;

@@ -679,9 +679,12 @@ void do_buttons(int mouse_x, int mouse_y) {
 
 int main() {
 	Bitmap bitmap = {.pixels=malloc(1<<20)};
-	Arena bitmap_arena = (Arena){.cap=(1<<20), .data=bitmap.pixels};
+	Arena bitmap_arena = (Arena){.cap=(1<<20), .data=bitmap.pixels, .name="Test bitmap arena"};
 	load_ppm("sample.ppm", &bitmap_arena, &bitmap.width, &bitmap.height);
 	test_image = bitmap;
+
+	Arena scrap_arena = (Arena){.data=malloc(1<<20), .cap=(1<<20), .name="Scrap arena for compression"};
+	compress_huffman(sizeof(test_image.pixels[0])*test_image.width*test_image.height, (void *)test_image.pixels, &scrap_arena);
 
 	SDL_Init(SDL_INIT_EVERYTHING);
 	w = SDL_CreateWindow( "test",
