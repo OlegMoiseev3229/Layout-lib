@@ -14,7 +14,7 @@ typedef struct {
 
 typedef enum {
 	ButtonTypeNone,
-	TabButton,
+	NewSectionButton,
 } ButtonType;
 
 typedef struct {
@@ -71,7 +71,7 @@ SDL_Window*   w = {0};
 
 Button buttons[1024] = {0};
 int n_buttons = 0;
-int selected_tab = 1;
+int n_sections = 1;
 
 Bitmap test_image;
 
@@ -202,6 +202,11 @@ void fill_rect(Rect rect, uint32_t color) {
 	SDL_RenderFillRectF(r, &(SDL_FRect) {.x=rect.x, .y=rect.y, .w=rect.w, .h=rect.h});
 }
 
+void draw_rect (Rect rect, uint32_t color) {
+	SDL_SetRenderDrawColor32(r, color);
+	SDL_RenderDrawRectF(r, &(SDL_FRect) {.x=rect.x, .y=rect.y, .w=rect.w, .h=rect.h});
+}
+
 void draw_point(float x, float y, uint32_t color) {
 	SDL_SetRenderDrawColor32(r, color);
 	SDL_RenderDrawPointF(r, x, y);
@@ -217,6 +222,15 @@ void set_clip_rect(Rect *rect) {
 }
 
 //LAYOUT
+Rect floating_rect(Rect parent, Rect dimention_fractions) { // in dimention_fractions xywh are in range 0.0 to 1.0 and are a percentage of parent rect's dimentions
+	return (Rect) {
+		.x = parent.w*dimention_fractions.x,
+		.y = parent.h*dimention_fractions.y,
+		.w = parent.w*dimention_fractions.w,
+		.h = parent.h*dimention_fractions.h,
+	};
+}
+
 void rect_divide_vertical(
 		Rect parent,
 		int n_children,
@@ -636,30 +650,45 @@ void draw_layout(GlobalState *state) {
 	Rect window_rect = (Rect){.w=window_width, .h=window_height};
 	fill_rect(window_rect, 0xFFFFFFFF);
 
-	static DraggableBorder border = {0};
-
-	Rect left_area_rect;
-	Rect main_area_rect;
-	//rect_divide_vertical(window_rect, 2, (Rect*[]){&right_area_rect, &main_area_rect}, (double[]){1., 3.});
-	static double left_area_size = 1/4.;
-	rect_divide_by_border_vertical(window_rect, &left_area_rect, &main_area_rect, &left_area_size, &border);
-	fill_rect(left_area_rect, 0xAAAAAAFF);
-	fill_rect(main_area_rect, 0xFFFFFFFF);
-	Rect text_area = {0};
-	rect_divide_horizontal(left_area_rect, 3, (Rect *[]){NULL, &text_area, NULL}, (double[]){2., 1., 2.});
-
-	static TextDisplay text = {0};
-	if (text.font == NULL) text = create_editable_text_display(U"Edit me", state->font_info, 24.);
-	draw_text_display(text_area, &text);
-	focus_if_clicked(state, &text);
-	if (state->focused_text_display == &text) {
-		if (state->frame % 60 < 30) {
-			draw_text_display_cursor(text);
-		}
+	if (n_sections > 5) {
+		n_sections = 1;
 	}
 
-	static uint32_t pixels[] = {0xFF0000FF, 0x00FF00FF, 0x00FF00FF, 0xFF0000FF};
-	draw_bitmap(main_area_rect, test_image);
+	Rect section_rects[5] = {0};
+	Rect *section_rect_pointers[5] = {
+		&section_rects[0],
+		&section_rects[1],
+		&section_rects[2],
+		&section_rects[3],
+		&section_rects[4],
+	};
+	double section_rect_weights[5] = {1, 1, 1, 1, 1};
+
+	rect_divide_vertical(window_rect, n_sections, section_rect_pointers, section_rect_weights);
+
+	static TextDisplay test_text_display = {0};
+       	if (test_text_display.font == NULL) {
+		test_text_display = (TextDisplay) {.text=U"Some sample text, I just need to write whatever in here to fill some space so that there is some wrapping or whatever and I can clearly see the different things or whatever they are called........... sections, right, so that I can see sections, different sections. I hope I wrote enough because I'm running out of Ideas on what to write here. I mean I'm already writing about how I ran out of ideas, this is the dumbest topic to write about. Maybe there are dumber topics. I can't come up with any more dumb topics, though. \nIthought that it would be cool to throw in a new line character in here to check that nothing broke since I wrote the code a couple of weeks ago. I haven't changed anything but who knows", .font=state->font_info, .text_size=32.};
+	}
+	for (int i = 0; i < n_sections; i++) {
+		Rect upper_part;
+		Rect bottom_part;
+		rect_divide_horizontal(section_rects[i], 2, (Rect*[]){&upper_part, &bottom_part}, (double[]){3., 1.});
+		fill_rect(bottom_part, 0xBBBBBBFF);
+		draw_text_display(upper_part, &test_text_display);
+		draw_rect(section_rects[i], 0x000000FF);
+	}
+
+	Rect new_section_button = floating_rect(window_rect, (Rect){.x=0.05, .y=0.05, .w=0.17, .h=0.05});
+	fill_rect(new_section_button, 0x555555FF);
+
+	static TextDisplay new_section_text_display = {0};
+       	if (new_section_text_display.font == NULL) {
+		new_section_text_display = (TextDisplay) {.text=U"New section", .font=state->font_info, .text_size=32.};
+	}
+	buttons[n_buttons++] = (Button){.rect=new_section_button, .type=NewSectionButton};
+
+	draw_text_display(new_section_button, &new_section_text_display);
 }
 
 void do_buttons(int mouse_x, int mouse_y) {
@@ -668,8 +697,8 @@ void do_buttons(int mouse_x, int mouse_y) {
 		return;
 	}
 	switch (pressed_button.type) {
-	case TabButton:
-		selected_tab = pressed_button.n;
+	case NewSectionButton:
+		n_sections++;
 	break;
 	default:
 		fprintf(stderr, "Error!: Unknown button type pressed: %d \n", pressed_button.type);
@@ -679,12 +708,9 @@ void do_buttons(int mouse_x, int mouse_y) {
 
 int main() {
 	Bitmap bitmap = {.pixels=malloc(1<<20)};
-	Arena bitmap_arena = (Arena){.cap=(1<<20), .data=bitmap.pixels, .name="Test bitmap arena"};
+	Arena bitmap_arena = (Arena){.cap=(1<<20), .data=bitmap.pixels};
 	load_ppm("sample.ppm", &bitmap_arena, &bitmap.width, &bitmap.height);
 	test_image = bitmap;
-
-	Arena scrap_arena = (Arena){.data=malloc(1<<20), .cap=(1<<20), .name="Scrap arena for compression"};
-	compress_huffman(sizeof(test_image.pixels[0])*test_image.width*test_image.height, (void *)test_image.pixels, &scrap_arena);
 
 	SDL_Init(SDL_INIT_EVERYTHING);
 	w = SDL_CreateWindow( "test",
