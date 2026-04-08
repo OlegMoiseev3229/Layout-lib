@@ -4,6 +4,23 @@
 #include<stdint.h>
 #include "arena.c"
 
+typedef enum {
+	SVG_COMMAND_MOVETO,
+	SVG_COMMAND_LINETO,
+	SVG_COMMAND_HORIZONTAL_LINETO,
+	SVG_COMMAND_VERTICAL_LINETO,
+	SVG_COMMAND_CLOSEPATH,
+	SVG_COMMAND_CURVETO,
+	SVG_COMMAND_SMOOTH_CURVETO,
+	SVG_COMMAND_QUADRATIC_CURVETO,
+	SVG_COMMAND_SMOOTH_QUADRATIC_CURVETO,
+	SVG_COMMAND_ELIPTICAL_ARC
+} SVGCommandKind;
+
+typedef struct {
+
+} SVGCommand;
+
 int load_ppm(const char *filepath, Arena *arena, int *width_out, int *height_out) {
 	FILE *file = fopen(filepath, "r");
 	if (file == NULL) {
